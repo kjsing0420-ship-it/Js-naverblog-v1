@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>네이버 블로그 AI 자동화</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface2: #f0ede8;
+  --border: #e2ddd6;
+  --border2: #ccc8c0;
+  --accent: #03c75a;
+  --accent-dark: #029a47;
+  --danger: #e53e3e;
+  --warning: #d97706;
+  --text: #1a1814;
+  --text2: #6b6560;
+  --text3: #a8a29e;
+  --naver: #03c75a;
+  --radius: 10px;
+  --mono: 'IBM Plex Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans KR', sans-serif;
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── Layout ── */
+.app-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  grid-template-rows: 56px 1fr;
+  min-height: 100vh;
+}
+
+/* ── Top Bar ── */
+.topbar {
+  grid-column: 1 / -1;
+  background: var(--text);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+}
+
+.topbar-n {
+  width: 32px; height: 32px;
+  background: var(--naver);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 18px; color: #fff;
+  font-family: var(--mono);
+}
+
+.topbar-sep { flex: 1; }
+
+.server-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-family: var(--mono);
+  background: rgba(255,255,255,0.08);
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.server-badge:hover { background: rgba(255,255,255,0.14); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); }
+.status-dot.on { background: var(--naver); box-shadow: 0 0 8px var(--naver); }
+.status-dot.err { background: var(--danger); }
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sidebar-section h3 {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 12px;
+  padding: 0 8px;
+}
+
+.cred-field {
+  margin-bottom: 8px;
+}
+
+.cred-field label {
+  display: block;
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 600;
+  margin-bottom: 4px;
+  padding: 0 2px;
+}
+
+.cred-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: var(--mono);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.cred-input:focus { border-color: var(--accent); }
+.cred-input::placeholder { color: var(--text3); font-family: 'IBM Plex Sans KR', sans-serif; }
+
+.save-cred-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px;
+  background: var(--surface2);
+  border: 1px dashed var(--border2);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  font-family: 'IBM Plex Sans KR', sans-serif;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.save-cred-btn:hover { border-color: var(--accent); color: var(--accent); background: #f0fdf4; }
+.save-cred-btn.saved { border-color: var(--accent); color: var(--accent); background: #f0fdf4; border-style: solid; }
+
+/* Sidebar nav */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: #f0fdf4; color: var(--accent-dark); border-color: rgba(3,199,90,0.2); }
+.nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.nav-item .nav-badge {
+  margin-left: auto;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Options in sidebar */
+.opt-row { margin-bottom: 10px; }
+.opt-row label { display: block; font-size: 11px; color: var(--text2); font-weight: 600; margin-bottom: 4px; }
+.opt-select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 12px;
+  color: var(--text);
+  font-family: 'IBM Plex Sans KR', sans-serif;
+  outline: none;
+  cursor: pointer;
+}
+
+/* ── Main ── */
+.main {
+  overflow-y: auto;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Panel ── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+
+.panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-body { padding: 20px; }
+
+/* ── URL Input ── */
+.url-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.url-input-big {
+  flex: 1;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: var(--mono);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.url-input-big:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(3,199,90,0.12);
+}
+
+.url-input-big::placeholder { color: var(--text3); font-family: 'IBM Plex Sans KR', sans-serif; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'IBM Plex Sans KR', sans-serif;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-green {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(3,199,90,0.25);
+}
+.btn-green:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(3,199,90,0.3); }
+.btn-green:disabled { opacity: 0.45; transform: none; cursor: not-allowed; }
+
+.btn-dark { background: var(--text); color: #fff; }
+.btn-dark:hover { background: #333; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-danger { background: #fff1f1; color: var(--danger); border: 1px solid #fecaca; }
+.btn-danger:hover { background: #fee2e2; }
+
+.btn-sm { padding: 7px 12px; font-size: 12px; }
+
+/* ── Progress ── */
+.progress-panel { display: none; }
+
+.step-track {
+  display: flex;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.step-track::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: var(--border);
+}
+
+.step-line-fill {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  height: 1px;
+  background: var(--accent);
+  transition: width 0.6s ease;
+  width: 0%;
+}
+
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.step-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: all 0.3s;
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.step.active .step-dot {
+  border-color: var(--accent);
+  background: #f0fdf4;
+  color: var(--accent-dark);
+  box-shadow: 0 0 0 4px rgba(3,199,90,0.1);
+}
+
+.step.done .step-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.step-label {
+  font-size: 10px;
+  color: var(--text3);
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+.step.active .step-label { color: var(--accent-dark); }
+.step.done .step-label { color: var(--text2); }
+
+.progress-log {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+}
+
+.spin {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Editor ── */
+.editor-panel { display: none; }
+
+.editor-meta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+
+.title-input {
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: 'IBM Plex Sans KR', sans-serif;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+  letter-spacing: -0.3px;
+}
+.title-input:focus { border-color: var(--accent); }
+
+.editor-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.editor-body-wrap {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.editor-toolbar {
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.tb-btn {
+  background: none;
+  border: 1px solid transparent;
+  padding: 4px 9px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text2);
+  font-family: 'IBM Plex Sans KR', sans-serif;
+  transition: all 0.12s;
+  line-height: 1.4;
+}
+.tb-btn:hover { background: var(--surface); border-color: var(--border); color: var(--text); }
+
+.tb-sep { width: 1px; height: 18px; background: var(--border2); margin: 0 4px; }
+
+.blog-editor {
+  padding: 24px;
+  min-height: 420px;
+  max-height: 520px;
+  overflow-y: auto;
+  outline: none;
+  font-family: 'IBM Plex Sans KR', sans-serif;
+  font-size: 14.5px;
+  line-height: 1.85;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.blog-editor::-webkit-scrollbar { width: 5px; }
+.blog-editor::-webkit-scrollbar-track { background: transparent; }
+.blog-editor::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+.editor-foot {
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  gap: 20px;
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--mono);
+}
+
+.foot-stat span { color: var(--text2); font-weight: 600; }
+
+/* Tags row */
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface2);
+  min-height: 46px;
+  cursor: text;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f0fdf4;
+  border: 1px solid rgba(3,199,90,0.3);
+  color: var(--accent-dark);
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.chip-x { cursor: pointer; opacity: 0.5; font-size: 13px; line-height: 1; }
+.chip-x:hover { opacity: 1; }
+
+.chip-input {
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  font-family: 'IBM Plex Sans KR', sans-serif;
+  color: var(--text);
+  min-width: 80px;
+}
+
+/* ── SEO Panel ── */
+.seo-panel { display: none; }
+
+.seo-grid { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; }
+
+.seo-ring-wrap { text-align: center; }
+
+.seo-ring {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) 0deg, var(--border) 0deg);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 8px;
+  position: relative;
+  transition: background 1s ease;
+}
+
+.seo-ring::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  background: var(--surface);
+  border-radius: 50%;
+}
+
+.seo-num {
+  position: relative;
+  z-index: 1;
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.seo-label { font-size: 11px; color: var(--text3); font-weight: 600; }
+
+.seo-checks { display: flex; flex-direction: column; gap: 8px; }
+
+.seo-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.check-icon { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; font-weight: 700; }
+.check-ok { background: #f0fdf4; color: var(--accent-dark); border: 1px solid rgba(3,199,90,0.3); }
+.check-warn { background: #fffbeb; color: var(--warning); border: 1px solid rgba(217,119,6,0.3); }
+.check-fail { background: #fff1f1; color: var(--danger); border: 1px solid rgba(229,62,62,0.2); }
+
+.check-label { flex: 1; color: var(--text2); }
+.check-val { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+/* ── Schedule ── */
+.schedule-panel { display: none; }
+
+.schedule-add-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.dt-input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--mono);
+  color: var(--text);
+  outline: none;
+}
+.dt-input:focus { border-color: var(--accent); }
+
+.schedule-list { display: flex; flex-direction: column; gap: 8px; }
+
+.schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.schedule-row-info { flex: 1; }
+.schedule-row-title { font-weight: 600; color: var(--text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+.schedule-row-time { color: var(--text3); font-family: var(--mono); font-size: 11px; }
+
+.pill {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.pill-pending { background: #fffbeb; color: var(--warning); border: 1px solid rgba(217,119,6,0.2); }
+.pill-done { background: #f0fdf4; color: var(--accent-dark); border: 1px solid rgba(3,199,90,0.2); }
+.pill-failed { background: #fff1f1; color: var(--danger); border: 1px solid rgba(229,62,62,0.2); }
+.pill-publishing { background: #eff6ff; color: #2563eb; border: 1px solid rgba(37,99,235,0.2); }
+
+/* ── Toast ── */
+.toast-wrap {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 200;
+  max-width: 360px;
+}
+
+.toast {
+  background: var(--text);
+  color: #fff;
+  padding: 13px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  animation: slideIn 0.25s ease;
+}
+
+@keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes slideOut { to { transform: translateX(110%); opacity: 0; } }
+
+.toast.ok { border-left: 3px solid var(--accent); }
+.toast.err { border-left: 3px solid var(--danger); }
+.toast.info { border-left: 3px solid #60a5fa; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px auto 1fr;
+  }
+  .sidebar {
+    display: block;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 0;
+    overflow: hidden;
+  }
+  .sidebar-toggle-bar {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    background: var(--surface);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    user-select: none;
+  }
+  .sidebar-inner {
+    display: none;
+    padding: 16px;
+    flex-direction: column;
+    gap: 20px;
+    background: var(--surface);
+  }
+  .sidebar-inner.open { display: flex; }
+  .sidebar-section { gap: 8px; }
+  .opt-row { margin-bottom: 8px; }
+  .main { padding: 14px; }
+  .url-row { flex-direction: column; }
+  .url-input-big { font-size: 13px; }
+  .editor-meta { grid-template-columns: 1fr; }
+  .editor-actions { display: flex; justify-content: flex-end; }
+  .seo-grid { grid-template-columns: 1fr; }
+  .seo-ring-wrap { display: flex; align-items: center; gap: 16px; }
+  .panel-head { flex-wrap: wrap; gap: 8px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-n">N</div>
+      블로그 AI 자동화
+    </div>
+    <div class="topbar-sep"></div>
+    <div class="server-badge" onclick="checkServer()">
+      <div class="status-dot" id="serverDot"></div>
+      <span id="serverLabel" style="font-size:11px">서버 확인 중...</span>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-toggle-bar" id="sidebarToggleBar" onclick="toggleSidebar()">
+      <span>⚙️ &nbsp;API 키 &amp; 설정</span>
+      <span id="toggleArrow">▼</span>
+    </div>
+    <div class="sidebar-inner" id="sidebarInner">
+
+    <!-- Gemini API Key -->
+    <div class="sidebar-section">
+      <h3>Gemini API 키 <span style="background:#f0fdf4;color:var(--accent-dark);font-size:9px;padding:2px 6px;border-radius:8px;font-weight:700;border:1px solid rgba(3,199,90,0.3)">무료</span></h3>
+      <div class="cred-field">
+        <label>API Key &nbsp;<a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);font-size:10px;text-decoration:none">무료 발급 →</a></label>
+        <input class="cred-input" type="password" id="geminiKey" placeholder="AIzaSy...">
+      </div>
+    </div>
+
+    <!-- Account -->
+    <div class="sidebar-section">
+      <h3>네이버 계정</h3>
+      <div class="cred-field">
+        <label>아이디</label>
+        <input class="cred-input" type="text" id="naverID" placeholder="네이버 아이디">
+      </div>
+      <div class="cred-field">
+        <label>비밀번호</label>
+        <input class="cred-input" type="password" id="naverPW" placeholder="비밀번호">
+      </div>
+      <button class="save-cred-btn" id="saveCredBtn" onclick="saveCreds()">
+        💾 저장 (로컬)
+      </button>
+    </div>
+
+    <!-- Navigation -->
+    <div class="sidebar-section">
+      <h3>메뉴</h3>
+      <div class="nav-item active" onclick="switchView('write')">
+        <span class="nav-icon">✍️</span> 글 작성
+      </div>
+      <div class="nav-item" onclick="switchView('schedule')">
+        <span class="nav-icon">📅</span> 예약 발행
+        <span class="nav-badge" id="schedBadge" style="display:none">0</span>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="sidebar-section">
+      <h3>글쓰기 옵션</h3>
+      <div class="opt-row">
+        <label>스타일</label>
+        <select class="opt-select" id="styleOpt">
+          <option value="seo">정보성 SEO 최적화</option>
+          <option value="review">감성 체험 리뷰</option>
+          <option value="unboxing">솔직 언박싱 후기</option>
+          <option value="compare">비교 분석형</option>
+        </select>
+      </div>
+      <div class="opt-row">
+        <label>분량</label>
+        <select class="opt-select" id="lengthOpt">
+          <option value="medium">중간 (1500~2000자)</option>
+          <option value="long">긴 글 (2500자+)</option>
+          <option value="short">짧게 (800자)</option>
+        </select>
+      </div>
+      <div class="opt-row">
+        <label>타겟</label>
+        <select class="opt-select" id="targetOpt">
+          <option value="general">일반 소비자</option>
+          <option value="women2030">2030 여성</option>
+          <option value="men2030">2030 남성</option>
+          <option value="parents">육아 부모</option>
+          <option value="senior">4050 세대</option>
+        </select>
+      </div>
+      <div class="opt-row">
+        <label>헤드리스 모드</label>
+        <select class="opt-select" id="headlessOpt">
+          <option value="false">브라우저 창 표시</option>
+          <option value="true">백그라운드 실행</option>
+        </select>
+      </div>
+    </div>
+
+    </div><!-- /sidebar-inner -->
+  </aside>
+
+  <!-- Main -->
+  <main class="main" id="mainWrite">
+
+    <!-- URL Input -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">🔗 상세페이지 URL</div>
+      </div>
+      <div class="panel-body">
+        <div class="url-row">
+          <input class="url-input-big" type="text" id="urlInput"
+            placeholder="https://naver.me/... 또는 스마트스토어, 쇼핑몰 URL">
+          <button class="btn btn-green" id="genBtn" onclick="generate()">
+            ✨ 글 생성
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="panel progress-panel" id="progressPanel">
+      <div class="panel-head">
+        <div class="panel-title">⚙️ 생성 중</div>
+      </div>
+      <div class="panel-body">
+        <div class="step-track">
+          <div class="step-line-fill" id="stepFill"></div>
+          <div class="step" id="s1"><div class="step-dot">01</div><div class="step-label">URL 분석</div></div>
+          <div class="step" id="s2"><div class="step-dot">02</div><div class="step-label">콘텐츠 수집</div></div>
+          <div class="step" id="s3"><div class="step-dot">03</div><div class="step-label">AI 작성</div></div>
+          <div class="step" id="s4"><div class="step-dot">04</div><div class="step-label">SEO 분석</div></div>
+          <div class="step" id="s5"><div class="step-dot">05</div><div class="step-label">완료</div></div>
+        </div>
+        <div class="progress-log">
+          <div class="spin" id="spinner"></div>
+          <span id="logText">초기화 중...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor -->
+    <div class="panel editor-panel" id="editorPanel">
+      <div class="panel-head">
+        <div class="panel-title">📝 블로그 편집기</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="regenerate()">🔄 재생성</button>
+          <button class="btn btn-green btn-sm" id="publishBtn" onclick="publishNow()">
+            🚀 지금 발행
+          </button>
+        </div>
+      </div>
+      <div class="panel-body" style="padding:16px">
+        <div class="editor-meta">
+          <input class="title-input" id="blogTitle" placeholder="블로그 제목">
+          <div class="editor-actions">
+            <button class="btn btn-ghost btn-sm" onclick="copyAll()">📋 복사</button>
+          </div>
+        </div>
+        <div class="editor-body-wrap">
+          <div class="editor-toolbar">
+            <button class="tb-btn" onclick="fmt('bold')"><b>B</b></button>
+            <button class="tb-btn" onclick="fmt('italic')"><i>I</i></button>
+            <div class="tb-sep"></div>
+            <button class="tb-btn" onclick="ins('✅ ')">✅</button>
+            <button class="tb-btn" onclick="ins('⭐ ')">⭐</button>
+            <button class="tb-btn" onclick="ins('💡 ')">💡</button>
+            <button class="tb-btn" onclick="ins('📌 ')">📌</button>
+            <button class="tb-btn" onclick="ins('🔥 ')">🔥</button>
+            <button class="tb-btn" onclick="ins('👉 ')">👉</button>
+            <button class="tb-btn" onclick="ins('✔️ ')">✔️</button>
+            <div class="tb-sep"></div>
+            <button class="tb-btn" onclick="ins('\n\n─────────────\n\n')">── 구분선</button>
+          </div>
+          <div class="blog-editor" id="blogEditor" contenteditable="true"
+               oninput="updateStats()"></div>
+          <div class="tags-row" id="tagsRow" onclick="document.getElementById('chipInput').focus()">
+            <span style="font-size:11px;color:var(--text3);font-weight:600;white-space:nowrap"># 태그</span>
+            <input class="chip-input" id="chipInput" placeholder="태그 입력 후 Enter">
+          </div>
+          <div class="editor-foot">
+            <div class="foot-stat">글자 <span id="cntChar">0</span>자</div>
+            <div class="foot-stat">문단 <span id="cntPara">0</span>개</div>
+            <div class="foot-stat">태그 <span id="cntTag">0</span>개</div>
+            <div class="foot-stat">읽기 <span id="cntRead">0</span>분</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEO -->
+    <div class="panel seo-panel" id="seoPanel">
+      <div class="panel-head">
+        <div class="panel-title">📊 SEO 분석</div>
+      </div>
+      <div class="panel-body">
+        <div class="seo-grid">
+          <div class="seo-ring-wrap">
+            <div class="seo-ring" id="seoRing">
+              <div class="seo-num" id="seoNum">0</div>
+            </div>
+            <div class="seo-label">SEO 점수</div>
+          </div>
+          <div class="seo-checks" id="seoChecks"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Schedule view (hidden initially) -->
+  <main class="main" id="mainSchedule" style="display:none">
+    <div class="panel schedule-panel" id="schedulePanel" style="display:block">
+      <div class="panel-head">
+        <div class="panel-title">📅 예약 발행 관리</div>
+      </div>
+      <div class="panel-body">
+        <div class="schedule-add-row">
+          <input type="datetime-local" class="dt-input" id="schedDt">
+          <button class="btn btn-green" onclick="addSchedule()">+ 예약 등록</button>
+        </div>
+        <div class="schedule-list" id="schedList">
+          <div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">
+            예약된 발행이 없습니다
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+const API = 'http://localhost:3000/api';
+let tags = [];
+let generatedContent = '';
+let generatedTitle = '';
+let schedules = [];
+let currentView = 'write';
+
+// ── Init ──────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadCreds();
+  checkServer();
+  setSchedNow();
+
+  document.getElementById('chipInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.value.trim()) {
+      addTag(e.target.value.trim().replace(/^#/, ''));
+      e.target.value = '';
+      e.preventDefault();
+    }
+  });
+
+  setInterval(checkServer, 30000);
+  setInterval(syncSchedules, 10000);
+});
+
+function setSchedNow() {
+  const d = new Date(); d.setHours(d.getHours() + 1);
+  document.getElementById('schedDt').value = d.toISOString().slice(0,16);
+}
+
+// ── Server status ─────────────────────────────────────────
+async function checkServer() {
+  const dot = document.getElementById('serverDot');
+  const lbl = document.getElementById('serverLabel');
+  try {
+    const r = await fetch(`${API}/status`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      dot.className = 'status-dot on';
+      lbl.textContent = '서버 연결됨';
+    } else throw new Error();
+  } catch {
+    dot.className = 'status-dot err';
+    lbl.textContent = '서버 오프라인';
+  }
+}
+
+// ── Creds ─────────────────────────────────────────────────
+function saveCreds() {
+  const id = document.getElementById('naverID').value;
+  const pw = document.getElementById('naverPW').value;
+  const key = document.getElementById('geminiKey').value;
+  localStorage.setItem('naver_id', id);
+  localStorage.setItem('naver_pw', btoa(pw));
+  if (key) localStorage.setItem('gemini_key', btoa(key));
+  const btn = document.getElementById('saveCredBtn');
+  btn.className = 'save-cred-btn saved';
+  btn.textContent = '✓ 저장됨';
+  toast('계정 정보가 저장되었습니다', 'ok');
+}
+
+function loadCreds() {
+  const id = localStorage.getItem('naver_id') || '';
+  const pw = localStorage.getItem('naver_pw') || '';
+  const key = localStorage.getItem('gemini_key') || '';
+  document.getElementById('naverID').value = id;
+  if (pw) { try { document.getElementById('naverPW').value = atob(pw); } catch {} }
+  if (key) { try { document.getElementById('geminiKey').value = atob(key); } catch {} }
+  if (id) {
+    document.getElementById('saveCredBtn').className = 'save-cred-btn saved';
+    document.getElementById('saveCredBtn').textContent = '✓ 저장됨';
+  }
+}
+
+// ── View switch ───────────────────────────────────────────
+function switchView(v) {
+  currentView = v;
+  document.getElementById('mainWrite').style.display = v === 'write' ? 'flex' : 'none';
+  document.getElementById('mainSchedule').style.display = v === 'schedule' ? 'flex' : 'none';
+  document.querySelectorAll('.nav-item').forEach((el, i) => {
+    el.classList.toggle('active', (i === 0 && v === 'write') || (i === 1 && v === 'schedule'));
+  });
+  if (v === 'schedule') renderSchedules();
+}
+
+// ── Tags ──────────────────────────────────────────────────
+function addTag(t) {
+  if (!t || tags.includes(t) || tags.length >= 15) return;
+  tags.push(t);
+  renderTags();
+}
+
+function removeTag(t) {
+  tags = tags.filter(x => x !== t);
+  renderTags();
+}
+
+function renderTags() {
+  const row = document.getElementById('tagsRow');
+  row.querySelectorAll('.chip').forEach(el => el.remove());
+  const input = document.getElementById('chipInput');
+  tags.forEach(t => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `#${t} <span class="chip-x" onclick="removeTag('${t}')">×</span>`;
+    row.insertBefore(chip, input);
+  });
+  document.getElementById('cntTag').textContent = tags.length;
+}
+
+// ── Generate ──────────────────────────────────────────────
+async function generate() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { toast('URL을 입력하세요', 'err'); return; }
+
+  setBtn(false);
+  show('progressPanel');
+  hide('editorPanel'); hide('seoPanel');
+
+  setStep(1); setLog('URL 페이지를 분석하고 있습니다...');
+
+  // 1. 서버 스크래핑 시도
+  let scraped = null;
+  try {
+    const r = await fetch(`${API}/scrape`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (r.ok) scraped = await r.json();
+  } catch {
+    setLog('⚠️ 서버 미연결 — AI 단독 모드로 진행합니다');
+    await sleep(800);
+  }
+
+  setStep(2); setLog('콘텐츠를 수집했습니다. AI 글쓰기를 시작합니다...');
+  await sleep(400);
+
+  setStep(3); setLog('AI가 SEO 최적화 블로그 글을 작성 중...');
+
+  const style = document.getElementById('styleOpt').value;
+  const length = document.getElementById('lengthOpt').value;
+  const target = document.getElementById('targetOpt').value;
+
+  const styleGuide = {
+    seo: '정보성 SEO 최적화 글: 핵심 키워드 반복, 구체적 수치, 전문 정보 위주',
+    review: '감성 체험 리뷰: 개인 경험 중심, 따뜻한 어조, 감정 공감',
+    unboxing: '솔직한 언박싱 후기: 장단점 명확히, 실사용 느낌, 소비자 눈높이',
+    compare: '비교 분석형: 경쟁 제품 대비 장단점, 표 형식 정보 포함'
+  };
+
+  const lenGuide = { short: '800~1000자', medium: '1500~2000자', long: '2500~3000자' };
+  const tgtGuide = { general: '일반 소비자', women2030: '2030대 여성', men2030: '2030대 남성', parents: '육아 부모', senior: '4050세대' };
+
+  const scrapedInfo = scraped
+    ? `\n\n[수집된 실제 데이터]\n제목: ${scraped.title}\n가격: ${scraped.price}\n내용: ${scraped.bodyText?.substring(0,1000)}\n카테고리: ${scraped.categories?.join(', ')}`
+    : `\n\n[URL 기반 추론]: ${url}`;
+
+  const prompt = `당신은 네이버 블로그 SEO 최적화 전문 작가입니다.
+
+아래 상품/서비스를 기반으로 네이버 블로그 최적화 글을 작성하세요.${scrapedInfo}
+
+[작성 조건]
+- 스타일: ${styleGuide[style]}
+- 분량: ${lenGuide[length]}
+- 타겟 독자: ${tgtGuide[target]}
+
+[네이버 블로그 SEO 최적화 필수 규칙]
+1. 제목은 별도 작성하지 말고 본문만 작성 (제목은 따로 처리)
+2. 소제목은 ## 으로 구분 (3~5개)
+3. 핵심 키워드를 자연스럽게 3~5회 반복
+4. 첫 문단에서 독자 공감 또는 문제 제기로 시작
+5. 숫자/통계/구체적 정보 포함 (신뢰도↑)
+6. 이모지 적절히 활용 (5~10개)
+7. 강조 포인트는 ※ 또는 💡로 표시
+8. 마지막 문단에 행동 유도 문구(CTA) 포함
+9. 마지막에 해시태그 20~30개 (#태그 형식, 한 줄에 5개씩)
+10. 전체 글이 자연스럽고 광고티 나지 않게 작성
+
+제목(한 줄)을 먼저 TITLE: 로 시작해서 쓰고, 그 다음 줄부터 본문을 작성하세요.
+한국어로 작성하세요.`;
+
+  try {
+    const apiKey = document.getElementById('geminiKey').value.trim();
+    if (!apiKey) { toast('Gemini API 키를 입력하세요 (무료 발급 가능)', 'err'); setBtn(true); return; }
+
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 3000, temperature: 0.8 }
+      })
+    });
+
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `API ${r.status}`);
+    }
+    const data = await r.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // 제목 분리
+    const lines = text.split('\n');
+    let title = '', body = text;
+    const titleLine = lines.find(l => l.startsWith('TITLE:'));
+    if (titleLine) {
+      title = titleLine.replace('TITLE:', '').trim();
+      body = lines.filter(l => !l.startsWith('TITLE:')).join('\n').trim();
+    } else {
+      title = lines[0].replace(/^#+ /, '').trim();
+      body = lines.slice(1).join('\n').trim();
+    }
+
+    // 태그 자동 추출
+    const autoTags = (body.match(/#[가-힣a-zA-Z0-9_]+/g) || [])
+      .map(t => t.replace('#', ''))
+      .filter(t => t.length >= 2 && t.length <= 12)
+      .slice(0, 15);
+    autoTags.forEach(t => addTag(t));
+
+    setStep(4); setLog('SEO 점수를 계산하고 있습니다...');
+    await sleep(400);
+
+    generatedTitle = title;
+    generatedContent = body;
+
+    document.getElementById('blogTitle').value = title;
+    document.getElementById('blogEditor').innerText = body;
+    updateStats();
+
+    setStep(5);
+    setLog('✅ 블로그 글 생성 완료!');
+    document.getElementById('spinner').style.display = 'none';
+
+    await sleep(700);
+    hide('progressPanel');
+    show('editorPanel');
+    show('seoPanel');
+    calcSEO(body);
+
+  } catch (err) {
+    setLog(`❌ 오류: ${err.message}`);
+    toast(err.message, 'err');
+  } finally {
+    setBtn(true);
+  }
+}
+
+// ── Publish ───────────────────────────────────────────────
+async function publishNow() {
+  const id = document.getElementById('naverID').value.trim();
+  const pw = document.getElementById('naverPW').value.trim();
+  if (!id || !pw) { toast('네이버 계정을 입력하세요', 'err'); return; }
+
+  const title = document.getElementById('blogTitle').value;
+  const content = document.getElementById('blogEditor').innerText;
+  if (!content) { toast('발행할 글이 없습니다', 'err'); return; }
+
+  const btn = document.getElementById('publishBtn');
+  btn.disabled = true; btn.textContent = '⏳ 발행 중...';
+  toast('네이버 브라우저 자동화를 시작합니다...', 'info');
+
+  try {
+    const r = await fetch(`${API}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ naverID: id, naverPW: pw, title, content, tags })
+    });
+
+    const data = await r.json();
+    if (data.success) {
+      toast('🎉 발행 완료!', 'ok');
+      if (data.url) toast(`URL: ${data.url}`, 'info');
+    } else {
+      toast(`발행 실패: ${data.error}`, 'err');
+    }
+  } catch (err) {
+    toast(`서버 오류: ${err.message} — 서버가 실행 중인지 확인하세요`, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '🚀 지금 발행';
+  }
+}
+
+// ── Schedule ──────────────────────────────────────────────
+async function addSchedule() {
+  const id = document.getElementById('naverID').value.trim();
+  const pw = document.getElementById('naverPW').value.trim();
+  if (!id || !pw) { toast('네이버 계정을 입력하세요', 'err'); return; }
+
+  const dt = document.getElementById('schedDt').value;
+  if (!dt) { toast('날짜/시간을 선택하세요', 'err'); return; }
+
+  const title = document.getElementById('blogTitle').value;
+  const content = document.getElementById('blogEditor').innerText;
+  if (!content) { toast('예약할 글을 먼저 생성하세요', 'err'); return; }
+
+  try {
+    const r = await fetch(`${API}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ naverID: id, naverPW: pw, title, content, tags, scheduleAt: dt })
+    });
+
+    const data = await r.json();
+    if (data.success && data.scheduled) {
+      toast(`📅 예약 등록: ${new Date(dt).toLocaleString('ko-KR')}`, 'ok');
+      syncSchedules();
+    }
+  } catch {
+    // Fallback: local schedule
+    schedules.push({
+      id: Date.now(), title, content,
+      scheduleAt: dt,
+      timeStr: new Date(dt).toLocaleString('ko-KR'),
+      status: 'pending'
+    });
+    toast('📅 로컬 예약 등록됨 (서버 필요)', 'info');
+    updateSchedBadge();
+    renderSchedules();
+  }
+}
+
+async function syncSchedules() {
+  try {
+    const r = await fetch(`${API}/schedules`);
+    if (r.ok) {
+      schedules = await r.json();
+      updateSchedBadge();
+      if (currentView === 'schedule') renderSchedules();
+    }
+  } catch {}
+}
+
+async function deleteSchedule(id) {
+  schedules = schedules.filter(s => s.id !== id);
+  try { await fetch(`${API}/schedules/${id}`, { method: 'DELETE' }); } catch {}
+  updateSchedBadge();
+  renderSchedules();
+}
+
+function renderSchedules() {
+  const list = document.getElementById('schedList');
+  if (!schedules.length) {
+    list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">예약된 발행이 없습니다</div>';
+    return;
+  }
+
+  list.innerHTML = schedules.map(s => {
+    const pillClass = { pending: 'pill-pending', done: 'pill-done', failed: 'pill-failed', publishing: 'pill-publishing' }[s.status] || 'pill-pending';
+    const pillText = { pending: '예약중', done: '발행완료', failed: '실패', publishing: '발행중' }[s.status] || s.status;
+    return `
+      <div class="schedule-row">
+        <div class="schedule-row-info">
+          <div class="schedule-row-title">${s.title || '(제목 없음)'}</div>
+          <div class="schedule-row-time">⏰ ${s.timeStr || new Date(s.scheduleAt).toLocaleString('ko-KR')}</div>
+        </div>
+        <span class="pill ${pillClass}">${pillText}</span>
+        ${s.status === 'pending' ? `<button class="btn btn-danger btn-sm" onclick="deleteSchedule(${s.id})">삭제</button>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function updateSchedBadge() {
+  const pending = schedules.filter(s => s.status === 'pending').length;
+  const badge = document.getElementById('schedBadge');
+  badge.style.display = pending > 0 ? 'inline' : 'none';
+  badge.textContent = pending;
+}
+
+// ── SEO Calc ──────────────────────────────────────────────
+function calcSEO(text) {
+  const len = text.length;
+  const h2 = (text.match(/^##\s/gm) || []).length;
+  const hashTags = (text.match(/#[가-힣a-zA-Z0-9_]+/g) || []).length;
+  const hasNum = /\d+/.test(text);
+  const hasCTA = /지금|바로|구매|확인|방문|클릭|신청|추천|후기|리뷰/g.test(text);
+  const hasEmoji = /[\u{1F300}-\u{1F9FF}]/u.test(text);
+  const titleLen = document.getElementById('blogTitle').value.length;
+
+  const checks = [
+    { label: '글 분량', val: Math.min(100, Math.round(len / 20)), pass: len >= 800 },
+    { label: '소제목 구조 (##)', val: Math.min(100, h2 * 25), pass: h2 >= 2 },
+    { label: '해시태그', val: Math.min(100, hashTags * 3), pass: hashTags >= 10 },
+    { label: '숫자/수치 포함', val: hasNum ? 90 : 20, pass: hasNum },
+    { label: '행동 유도 문구', val: hasCTA ? 85 : 20, pass: hasCTA },
+    { label: '이모지 활용', val: hasEmoji ? 80 : 20, pass: hasEmoji },
+    { label: '제목 길이', val: titleLen >= 10 && titleLen <= 32 ? 95 : 50, pass: titleLen >= 10 },
+  ];
+
+  const total = Math.round(checks.reduce((a, c) => a + c.val, 0) / checks.length);
+
+  // Animate ring
+  let cur = 0;
+  const ring = document.getElementById('seoRing');
+  const num = document.getElementById('seoNum');
+  const timer = setInterval(() => {
+    cur = Math.min(cur + 2, total);
+    num.textContent = cur;
+    const deg = Math.round(cur * 3.6);
+    const color = cur >= 80 ? 'var(--accent)' : cur >= 60 ? '#d97706' : '#e53e3e';
+    ring.style.background = `conic-gradient(${color} ${deg}deg, var(--border) ${deg}deg)`;
+    if (cur >= total) clearInterval(timer);
+  }, 18);
+
+  document.getElementById('seoChecks').innerHTML = checks.map(c => {
+    const cls = c.pass ? 'check-ok' : c.val >= 50 ? 'check-warn' : 'check-fail';
+    const icon = c.pass ? '✓' : c.val >= 50 ? '△' : '✗';
+    return `
+      <div class="seo-check">
+        <div class="check-icon ${cls}">${icon}</div>
+        <div class="check-label">${c.label}</div>
+        <div class="check-val">${c.val}%</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Editor helpers ────────────────────────────────────────
+function updateStats() {
+  const el = document.getElementById('blogEditor');
+  const text = el.innerText;
+  document.getElementById('cntChar').textContent = text.length.toLocaleString();
+  document.getElementById('cntPara').textContent = text.split(/\n\n+/).filter(p => p.trim()).length;
+  document.getElementById('cntRead').textContent = Math.max(1, Math.ceil(text.length / 700));
+}
+
+function fmt(cmd) { document.execCommand(cmd); document.getElementById('blogEditor').focus(); }
+function ins(text) { document.getElementById('blogEditor').focus(); document.execCommand('insertText', false, text); }
+
+async function copyAll() {
+  const title = document.getElementById('blogTitle').value;
+  const body = document.getElementById('blogEditor').innerText;
+  try {
+    await navigator.clipboard.writeText(title + '\n\n' + body);
+    toast('📋 복사 완료!', 'ok');
+  } catch { toast('복사 실패', 'err'); }
+}
+
+async function regenerate() {
+  document.getElementById('blogEditor').innerText = '';
+  document.getElementById('blogTitle').value = '';
+  tags = []; renderTags();
+  await generate();
+}
+
+// ── UI helpers ────────────────────────────────────────────
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function setBtn(on) { document.getElementById('genBtn').disabled = !on; }
+
+function setStep(n) {
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('s' + i);
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  }
+  document.getElementById('stepFill').style.width = ((n - 1) / 4 * 100) + '%';
+}
+
+function setLog(msg) { document.getElementById('logText').textContent = msg; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function toggleSidebar() {
+  const inner = document.getElementById('sidebarInner');
+  const arrow = document.getElementById('toggleArrow');
+  const isOpen = inner.classList.toggle('open');
+  arrow.textContent = isOpen ? '▲' : '▼';
+}
+
+function toast(msg, type = 'ok') {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${type === 'ok' ? '✓' : type === 'err' ? '✕' : 'ℹ'}</span> ${msg}`;
+  wrap.appendChild(el);
+  setTimeout(() => {
+    el.style.animation = 'slideOut 0.25s ease forwards';
+    setTimeout(() => el.remove(), 250);
+  }, 4000);
+}
+</script>
+</body>
+</html>
